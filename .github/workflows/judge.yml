@@ -1,0 +1,42 @@
+name: 代码评测
+
+on:
+  push:
+    paths:
+      - 'submit/**'
+  pull_request:
+
+jobs:
+  judge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 编译 C++ 代码
+        run: |
+          echo "正在编译..."
+          g++ -std=c++17 -O2 -o program submit/main.cpp
+
+      - name: 运行测试
+        run: |
+          echo "运行测试..."
+          passed=0
+          total=0
+          for input in testdata/*.in; do
+            total=$((total + 1))
+            base=$(basename "$input" .in)
+            ./program < "$input" > submit/output.txt 2>&1
+            if diff -q submit/output.txt "testdata/$base.out" > /dev/null 2>&1; then
+              echo "测试点 $base: AC"
+              passed=$((passed + 1))
+            else
+              echo "测试点 $base: WA"
+              diff submit/output.txt "testdata/$base.out" || true
+            fi
+          done
+          echo ""
+          echo "结果: $passed / $total"
+          if [ $passed -eq $total ]; then
+            echo "全对！"
+          fi
