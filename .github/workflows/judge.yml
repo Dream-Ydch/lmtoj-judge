@@ -4,7 +4,8 @@ on:
   push:
     paths:
       - 'submit/**'
-  pull_request:
+  repository_dispatch:
+    types: [judge]
 
 jobs:
   judge:
@@ -13,30 +14,92 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: 编译 C++ 代码
+      - name: 获取参数
         run: |
-          echo "正在编译..."
-          g++ -std=c++17 -O2 -o program submit/main.cpp
+          echo "题目ID: ${{ github.event.client_payload.problem_id }}"
+          echo "评测ID: ${{ github.event.client_payload.judge_id }}"
 
-      - name: 运行测试
+      - name: 编译
+        env:
+          JUDGE_ID: ${{ github.event.client_payload.judge_id }}
         run: |
-          echo "运行测试..."
+          if [ ! -f "submit/${JUDGE_ID}.cpp" ]; then
+            echo "代码文件 submit/${JUDGE_ID}.cpp 不存在"
+            exit 1
+          fi
+          cp "submit/${JUDGE_ID}.cpp" main.cpp
+          if g++ -std=c++17 -O2 -o program main.cpp 2> compile_error.txt; then
+            echo "编译成功"
+          else
+            echo "编译失败"
+            cat compile_error.txt
+            exit 1
+          fi
+
+      - name: 评测
+        env:
+          JUDGE_ID: ${{ github.event.client_payload.judge_id }}
+          PROBLEM_ID: ${{ github.event.client_payload.problem_id }}
+        run: |
+          data_dir="$PROBLEM_ID"
+          if [ ! -d "$data_dir" ]; then
+            echo "错误：题目 $PROBLEM_ID 的测试数据不存在"
+            exit 1
+          fi
+          
           passed=0
           total=0
-          for input in testdata/*.in; do
+          
+          for input in "$data_dir"/*.in; do
+            if [ ! -f "$input" ]; then continue; fi
             total=$((total + 1))
             base=$(basename "$input" .in)
-            ./program < "$input" > submit/output.txt 2>&1
-            if diff -q submit/output.txt "testdata/$base.out" > /dev/null 2>&1; then
-              echo "测试点 $base: AC"
-              passed=$((passed + 1))
+            output_file="$data_dir/$base.out"
+            ans_file="$data_dir/$base.ans"
+            
+            # 兼容 .out 和 .ans 两种答案文件
+            if [ -f "$output_file" ]; then
+              answer_file="$output_file"
+            elif [ -f "$ans_file" ]; then
+              answer_file="$ans_file"
             else
-              echo "测试点 $base: WA"
-              diff submit/output.txt "testdata/$base.out" || true
+              echo "测试点 $base: SKIP (无答案文件)"
+              continue
+            fi
+            
+            start_time=$(date +%s%N)
+            timeout 5 ./program < "$input" > output.txt 2>&1
+            exit_code=$?
+            end_time=$(date +%s%N)
+            time_ms=$(( (end_time - start_time) / 1000000 ))
+            
+            if [ $exit_code -eq 124 ]; then
+              echo "测试点 $base: TLE (超时, ${time_ms}ms)"
+            elif [ $exit_code -ne 0 ]; then
+              echo "测试点 $base: RE (运行错误)"
+              cat output.txt
+            else
+              if diff -q output.txt "$answer_file" > /dev/null 2>&1; then
+                echo "测试点 $base: AC (${time_ms}ms)"
+                passed=$((passed + 1))
+              else
+                echo "测试点 $base: WA"
+                echo "期望输出:"
+                cat "$answer_file"
+                echo "你的输出:"
+                cat output.txt
+              fi
             fi
           done
+          
           echo ""
-          echo "结果: $passed / $total"
-          if [ $passed -eq $total ]; then
-            echo "全对！"
+          echo "====== 评测结果 ======"
+          echo "通过: $passed / $total"
+          
+          if [ $passed -eq $total ] && [ $total -gt 0 ]; then
+            echo "结果: AC"
+          elif [ $total -eq 0 ]; then
+            echo "结果: 无测试数据"
+          else
+            echo "结果: WA/RE/TLE ($passed/$total)"
           fi
