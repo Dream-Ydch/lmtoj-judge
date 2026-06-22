@@ -114,3 +114,17 @@ jobs:
             echo "结果: WA/RE/TLE"
             exit 1
           fi
+      - name: 回传结果
+        if: always()
+        run: |
+          if [ $passed -eq $total ] && [ $total -gt 0 ]; then
+            RESULT="AC"
+          elif [ $total -eq 0 ]; then
+            RESULT="NoData"
+          else
+            RESULT="WA"
+          fi
+          
+          curl -X POST "https://lmtoj.xo.je/update_result.php" \
+            -H "Content-Type: application/json" \
+            -d "{\"judge_id\": JUDGE_ID, \"result\": \"$RESULT\", \"passed\": $passed, \"total\": $total, \"token\": \"your_secret_token\"}"
