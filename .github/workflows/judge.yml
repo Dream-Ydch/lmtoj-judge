@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: 获取评测ID和题目ID
         id: get_id
@@ -114,8 +116,14 @@ jobs:
             mkdir -p results
             echo "{\"judge_id\": ${{ env.JUDGE_ID }}, \"result\": \"CE\", \"passed\": 0, \"total\": 0}" > results/${{ env.JUDGE_ID }}.json
           fi
+
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
+
+          git pull --rebase origin main || true
           git add results/
           git commit -m "评测结果 #${{ env.JUDGE_ID }}" || true
-          git push || true
+
+          for i in 1 2 3 4 5; do
+            git pull --rebase origin main && git push && break || sleep 3
+          done
