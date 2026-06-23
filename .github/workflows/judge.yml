@@ -109,7 +109,7 @@ jobs:
           mkdir -p results
           echo "{\"judge_id\": ${{ env.JUDGE_ID }}, \"result\": \"$RESULT\", \"passed\": $passed, \"total\": $total}" > results/${{ env.JUDGE_ID }}.json
 
-      - name: 提交结果
+            - name: 提交结果
         if: always()
         run: |
           if [ -f result_status.txt ] && [ "$(cat result_status.txt)" = "CE" ]; then
@@ -117,10 +117,13 @@ jobs:
             echo "{\"judge_id\": ${{ env.JUDGE_ID }}, \"result\": \"CE\", \"passed\": 0, \"total\": 0}" > results/${{ env.JUDGE_ID }}.json
           fi
 
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
+          git stash || true
           git pull --rebase origin main || true
+          git stash pop || true
+
           git add results/
           git commit -m "评测结果 #${{ env.JUDGE_ID }}" || true
 
