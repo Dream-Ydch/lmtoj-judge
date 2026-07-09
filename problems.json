@@ -1,0 +1,14 @@
+[
+    {
+        "id": 1000,
+        "name": "A + B Problem",
+        "time_limit": 1000,
+        "memory_limit": 128
+    },
+    {
+        "id": 1001,
+        "name": "入门测试题目",
+        "time_limit": 1000,
+        "memory_limit": 256
+    }
+]
