@@ -1,0 +1,1 @@
+main(){uint32_t a,b;__builtin_scanf("%d%d",&a,&b);__builtin_printf("%lld",a+b);}
