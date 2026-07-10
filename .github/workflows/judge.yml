@@ -14,8 +14,8 @@ on:
         description: '题目ID (对应 testdata/{problem_id}/)'
         required: true
         type: string
-  repository_dispatch:          # ← 新增：允许通过 API 触发
-    types: [judge]              # ← 对应 PHP 中 event_type
+  repository_dispatch:
+    types: [judge]
 
 jobs:
   judge:
@@ -59,8 +59,8 @@ jobs:
           else
             echo "编译失败"
             cat compile_error.txt
-            mkdir -p results
-            echo "{\"judge_id\": ${{ env.JUDGE_ID }}, \"result\": \"CE\", \"passed\": 0, \"total\": 0}" > results/${{ env.JUDGE_ID }}.json
+            # 编译失败时先生成结果（但后面会被重置覆盖，改为在最后一步统一生成）
+            # 此处改为标记失败，最后一步会生成 SystemError
             exit 1
           fi
 
@@ -122,25 +122,39 @@ jobs:
             RESULT="WA"
           fi
 
-          mkdir -p results
-          echo "{\"judge_id\": ${{ env.JUDGE_ID }}, \"result\": \"$RESULT\", \"passed\": $passed, \"total\": $total}" > results/${{ env.JUDGE_ID }}.json
+          # 生成结果文件（但后续会被重置，改为在最后一步统一生成）
+          # 这里将结果写入临时文件或环境变量，供最后一步使用
+          echo "RESULT=$RESULT" >> $GITHUB_ENV
+          echo "PASSED=$passed" >> $GITHUB_ENV
+          echo "TOTAL=$total" >> $GITHUB_ENV
 
       - name: 提交结果到仓库
         if: always()
         env:
           MY_TOKEN: ${{ secrets.MY_TOKEN }}
         run: |
-          mkdir -p results
-          if [ ! -f "results/${{ env.JUDGE_ID }}.json" ]; then
-            echo "{\"judge_id\": ${{ env.JUDGE_ID }}, \"result\": \"SystemError\", \"passed\": 0, \"total\": 0}" > results/${{ env.JUDGE_ID }}.json
-          fi
-
+          # 配置 git
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
+          # 修正远程地址
           git remote set-url origin https://x-access-token:${MY_TOKEN}@github.com/Dream-Ydch/lmtoj-judge.git
 
-          git pull --rebase origin main || true
+          # 强制同步到远程最新
+          git fetch origin main
+          git reset --hard origin/main
+
+          # 生成结果文件
+          mkdir -p results
+          # 如果编译或评测失败，环境变量可能未设置，用默认值
+          RESULT="${RESULT:-SystemError}"
+          PASSED="${PASSED:-0}"
+          TOTAL="${TOTAL:-0}"
+          cat > results/${{ env.JUDGE_ID }}.json <<EOF
+          {"judge_id": ${{ env.JUDGE_ID }}, "result": "$RESULT", "passed": $PASSED, "total": $TOTAL}
+          EOF
+
+          # 提交并推送
           git add results/
           git commit -m "评测结果 #${{ env.JUDGE_ID }}" || true
           git push origin main
