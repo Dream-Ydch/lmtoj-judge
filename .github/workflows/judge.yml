@@ -4,12 +4,21 @@ on:
   push:
     paths:
       - 'submit/**'
-  repository_dispatch:
-    types: [judge]
+  workflow_dispatch:
+    inputs:
+      judge_id:
+        description: '评测ID (对应 submit/{judge_id}.cpp)'
+        required: true
+        type: string
+      problem_id:
+        description: '题目ID (对应 testdata/{problem_id}/)'
+        required: true
+        type: string
 
 jobs:
   judge:
     runs-on: ubuntu-latest
+
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -19,16 +28,17 @@ jobs:
       - name: 获取评测ID和题目ID
         id: get_id
         run: |
-          if [ -n "${{ github.event.client_payload.judge_id }}" ]; then
-            echo "JUDGE_ID=${{ github.event.client_payload.judge_id }}" >> $GITHUB_ENV
-            echo "PROBLEM_ID=${{ github.event.client_payload.problem_id }}" >> $GITHUB_ENV
-          else
+          JUDGE_ID="${{ github.event.inputs.judge_id }}"
+          PROBLEM_ID="${{ github.event.inputs.problem_id }}"
+          
+          if [ -z "$JUDGE_ID" ]; then
             COMMIT_MSG=$(git log -1 --pretty=%B)
             JUDGE_ID=$(echo "$COMMIT_MSG" | grep -oP '#\K\d+' | head -1)
             PROBLEM_ID=$(echo "$COMMIT_MSG" | grep -oP '题目 \K\d+' | head -1)
-            echo "JUDGE_ID=$JUDGE_ID" >> $GITHUB_ENV
-            echo "PROBLEM_ID=$PROBLEM_ID" >> $GITHUB_ENV
           fi
+          
+          echo "JUDGE_ID=$JUDGE_ID" >> $GITHUB_ENV
+          echo "PROBLEM_ID=$PROBLEM_ID" >> $GITHUB_ENV
 
       - name: 显示参数
         run: |
@@ -47,15 +57,19 @@ jobs:
           else
             echo "编译失败"
             cat compile_error.txt
-            echo "CE" > result_status.txt
+            mkdir -p results
+            echo "{\"judge_id\": ${{ env.JUDGE_ID }}, \"result\": \"CE\", \"passed\": 0, \"total\": 0}" > results/${{ env.JUDGE_ID }}.json
             exit 1
           fi
 
       - name: 评测
         run: |
-          data_dir="${{ env.PROBLEM_ID }}"
+          data_dir="testdata/${{ env.PROBLEM_ID }}"
           if [ ! -d "$data_dir" ]; then
-            echo "错误：题目 ${{ env.PROBLEM_ID }} 的测试数据目录不存在"
+            data_dir="${{ env.PROBLEM_ID }}"
+          fi
+          if [ ! -d "$data_dir" ]; then
+            echo "错误：找不到题目 ${{ env.PROBLEM_ID }} 的测试数据目录"
             exit 1
           fi
 
@@ -109,24 +123,18 @@ jobs:
           mkdir -p results
           echo "{\"judge_id\": ${{ env.JUDGE_ID }}, \"result\": \"$RESULT\", \"passed\": $passed, \"total\": $total}" > results/${{ env.JUDGE_ID }}.json
 
-            - name: 提交结果
+      - name: 提交结果到仓库
         if: always()
         run: |
-          if [ -f result_status.txt ] && [ "$(cat result_status.txt)" = "CE" ]; then
-            mkdir -p results
-            echo "{\"judge_id\": ${{ env.JUDGE_ID }}, \"result\": \"CE\", \"passed\": 0, \"total\": 0}" > results/${{ env.JUDGE_ID }}.json
+          mkdir -p results
+          if [ ! -f "results/${{ env.JUDGE_ID }}.json" ]; then
+            echo "{\"judge_id\": ${{ env.JUDGE_ID }}, \"result\": \"SystemError\", \"passed\": 0, \"total\": 0}" > results/${{ env.JUDGE_ID }}.json
           fi
 
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          git stash || true
           git pull --rebase origin main || true
-          git stash pop || true
-
           git add results/
           git commit -m "评测结果 #${{ env.JUDGE_ID }}" || true
-
-          for i in 1 2 3 4 5; do
-            git pull --rebase origin main && git push && break || sleep 3
-          done
+          git push origin main || true
