@@ -48,28 +48,28 @@ jobs:
           echo "题目ID: ${{ env.PROBLEM_ID }}"
 
       - name: 编译
+        id: build
         run: |
           if [ ! -f "submit/${{ env.JUDGE_ID }}.cpp" ]; then
             echo "代码文件 submit/${{ env.JUDGE_ID }}.cpp 不存在"
+            echo "BUILD_FAILED=true" >> $GITHUB_ENV
             exit 1
           fi
           cp "submit/${{ env.JUDGE_ID }}.cpp" main.cpp
           if g++ -std=c++17 -O2 -o program main.cpp 2> compile_error.txt; then
             echo "编译成功"
+            echo "BUILD_FAILED=false" >> $GITHUB_ENV
           else
             echo "编译失败"
             cat compile_error.txt
-            # 编译失败时先生成结果（但后面会被重置覆盖，改为在最后一步统一生成）
-            # 此处改为标记失败，最后一步会生成 SystemError
-            exit 1
+            echo "BUILD_FAILED=true" >> $GITHUB_ENV
+            # 不退出，让后续步骤执行提交 CE 结果
           fi
 
       - name: 评测
+        if: env.BUILD_FAILED == 'false'
         run: |
-          data_dir="testdata/${{ env.PROBLEM_ID }}"
-          if [ ! -d "$data_dir" ]; then
-            data_dir="${{ env.PROBLEM_ID }}"
-          fi
+          data_dir="${{ env.PROBLEM_ID }}"
           if [ ! -d "$data_dir" ]; then
             echo "错误：找不到题目 ${{ env.PROBLEM_ID }} 的测试数据目录"
             exit 1
@@ -107,6 +107,9 @@ jobs:
                 passed=$((passed + 1))
               else
                 echo "测试点 $base: WA"
+                # 可选：输出差异便于调试
+                # echo "--- 你的输出 ---" && cat output.txt
+                # echo "--- 期望输出 ---" && cat "$answer_file"
               fi
             fi
           done
@@ -122,8 +125,6 @@ jobs:
             RESULT="WA"
           fi
 
-          # 生成结果文件（但后续会被重置，改为在最后一步统一生成）
-          # 这里将结果写入临时文件或环境变量，供最后一步使用
           echo "RESULT=$RESULT" >> $GITHUB_ENV
           echo "PASSED=$passed" >> $GITHUB_ENV
           echo "TOTAL=$total" >> $GITHUB_ENV
@@ -136,25 +137,28 @@ jobs:
           # 配置 git
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-          # 修正远程地址
           git remote set-url origin https://x-access-token:${MY_TOKEN}@github.com/Dream-Ydch/lmtoj-judge.git
 
           # 强制同步到远程最新
           git fetch origin main
           git reset --hard origin/main
 
-          # 生成结果文件
+          # 根据编译和评测状态生成结果
           mkdir -p results
-          # 如果编译或评测失败，环境变量可能未设置，用默认值
-          RESULT="${RESULT:-SystemError}"
-          PASSED="${PASSED:-0}"
-          TOTAL="${TOTAL:-0}"
+          if [ "$BUILD_FAILED" == "true" ]; then
+            RESULT="CE"
+            PASSED=0
+            TOTAL=0
+          elif [ -z "$RESULT" ]; then
+            RESULT="SystemError"
+            PASSED=0
+            TOTAL=0
+          fi
+
           cat > results/${{ env.JUDGE_ID }}.json <<EOF
           {"judge_id": ${{ env.JUDGE_ID }}, "result": "$RESULT", "passed": $PASSED, "total": $TOTAL}
           EOF
 
-          # 提交并推送
           git add results/
           git commit -m "评测结果 #${{ env.JUDGE_ID }}" || true
           git push origin main
