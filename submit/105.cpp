@@ -1,0 +1,11 @@
+#include <bits/stdc++.h>
+#define int long long
+using namespace std;
+
+signed main() {
+    ios::sync_with_stdio(false), cin.tie(nullptr);
+    for (int i = 1; i <= 1145; i++)
+        cout << "CCFILOVEYOU";
+    cout << '\n';
+    return 0;
+}
