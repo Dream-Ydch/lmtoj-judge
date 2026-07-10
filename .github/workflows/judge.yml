@@ -141,4 +141,4 @@ jobs:
           git pull --rebase origin main || true
           git add results/
           git commit -m "评测结果 #${{ env.JUDGE_ID }}" || true
-          git push origin main || true
+          git push origin main
