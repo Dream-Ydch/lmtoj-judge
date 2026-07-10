@@ -125,6 +125,8 @@ jobs:
 
       - name: 提交结果到仓库
         if: always()
+        env:
+          MY_TOKEN: ${{ secrets.MY_TOKEN }}
         run: |
           mkdir -p results
           if [ ! -f "results/${{ env.JUDGE_ID }}.json" ]; then
@@ -133,6 +135,8 @@ jobs:
 
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          git remote set-url origin https://x-access-token:${MY_TOKEN}@github.com/Dream-Ydch/lmtoj-judge.git
 
           git pull --rebase origin main || true
           git add results/
