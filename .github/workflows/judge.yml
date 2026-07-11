@@ -63,7 +63,6 @@ jobs:
             echo "编译失败"
             cat compile_error.txt
             echo "BUILD_FAILED=true" >> $GITHUB_ENV
-            # 不退出，让后续步骤执行提交 CE 结果
           fi
 
       - name: 评测
@@ -77,6 +76,7 @@ jobs:
 
           passed=0
           total=0
+          mkdir -p tmp_compare
 
           for input in "$data_dir"/*.in; do
             if [ ! -f "$input" ]; then continue; fi
@@ -102,17 +102,20 @@ jobs:
             elif [ $exit_code -ne 0 ]; then
               echo "测试点 $base: RE"
             else
-              if diff -q output.txt "$answer_file" > /dev/null 2>&1; then
+              # 忽略末尾换行符和每行末尾空格
+              sed -e 's/[[:space:]]*$//' -e '${/^$/d}' output.txt > tmp_compare/output_norm.txt
+              sed -e 's/[[:space:]]*$//' -e '${/^$/d}' "$answer_file" > tmp_compare/answer_norm.txt
+              
+              if diff -q tmp_compare/output_norm.txt tmp_compare/answer_norm.txt > /dev/null 2>&1; then
                 echo "测试点 $base: AC"
                 passed=$((passed + 1))
               else
                 echo "测试点 $base: WA"
-                # 可选：输出差异便于调试
-                # echo "--- 你的输出 ---" && cat output.txt
-                # echo "--- 期望输出 ---" && cat "$answer_file"
               fi
             fi
           done
+
+          rm -rf tmp_compare
 
           echo ""
           echo "通过: $passed / $total"
@@ -134,16 +137,13 @@ jobs:
         env:
           MY_TOKEN: ${{ secrets.MY_TOKEN }}
         run: |
-          # 配置 git
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin https://x-access-token:${MY_TOKEN}@github.com/Dream-Ydch/lmtoj-judge.git
 
-          # 强制同步到远程最新
           git fetch origin main
           git reset --hard origin/main
 
-          # 根据编译和评测状态生成结果
           mkdir -p results
           if [ "$BUILD_FAILED" == "true" ]; then
             RESULT="CE"
