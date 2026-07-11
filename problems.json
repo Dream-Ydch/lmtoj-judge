@@ -10,5 +10,11 @@
         "name": "入门测试题目",
         "time_limit": 1000,
         "memory_limit": 256
+    },
+    {
+        "id": 1002,
+        "name": "PhigrOI 取球",
+        "time_limit": 1000,
+        "memory_limit": 256
     }
 ]
