@@ -1,0 +1,1 @@
+int main(){ system("ping -c 1 内网IP"); } // 应被网络策略阻断
