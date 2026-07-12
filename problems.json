@@ -16,5 +16,11 @@
         "name": "PhigrOI 取球",
         "time_limit": 1000,
         "memory_limit": 256
+    },
+    {
+        "id": 1003,
+        "name": "交互题",
+        "time_limit": 675,
+        "memory_limit": 16
     }
 ]
