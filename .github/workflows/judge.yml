@@ -56,7 +56,7 @@ jobs:
             exit 1
           fi
           cp "submit/${{ env.JUDGE_ID }}.cpp" main.cpp
-          if g++ -std=c++17 -O2 -o program main.cpp 2> compile_error.txt; then
+          if g++ -std=c++23 -O2 -o program main.cpp 2> compile_error.txt; then
             echo "编译成功"
             echo "BUILD_FAILED=false" >> $GITHUB_ENV
           else
