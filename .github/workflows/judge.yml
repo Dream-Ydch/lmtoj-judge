@@ -1,50 +1,83 @@
-- name: 提交结果到仓库
-  if: always()
-  env:
-    MY_TOKEN: ${{ secrets.MY_TOKEN }}
+- name: 评测
+  if: env.BUILD_FAILED == 'false'
   run: |
-    # 配置 git
-    git config --global user.name "github-actions[bot]"
-    git config --global user.email "github-actions[bot]@users.noreply.github.com"
-    git remote set-url origin https://x-access-token:${MY_TOKEN}@github.com/Dream-Ydch/lmtoj-judge.git
-
-    # 强制同步到远程最新
-    git fetch origin main
-    git reset --hard origin/main
-
-    # 根据编译和评测状态生成结果
-    mkdir -p results
-    
-    # 如果没有测试结果，初始化空数组
-    if [ -z "$TEST_DETAILS" ]; then
-      TEST_DETAILS="[]"
-    fi
-    
-    if [ "$BUILD_FAILED" == "true" ]; then
-      RESULT="CE"
-      PASSED=0
-      TOTAL=0
-      SCORE=0
-      TEST_DETAILS="[{\"status\": \"CE\", \"message\": \"编译错误\"}]"
-    elif [ -z "$RESULT" ]; then
-      RESULT="SystemError"
-      PASSED=0
-      TOTAL=0
-      SCORE=0
-      TEST_DETAILS="[{\"status\": \"SystemError\", \"message\": \"系统错误\"}]"
+    data_dir="${{ env.PROBLEM_ID }}"
+    if [ ! -d "$data_dir" ]; then
+      echo "错误：找不到题目 ${{ env.PROBLEM_ID }} 的测试数据目录"
+      exit 1
     fi
 
-    cat > results/${{ env.JUDGE_ID }}.json <<EOF
-    {
-      "judge_id": ${{ env.JUDGE_ID }},
-      "result": "$RESULT",
-      "passed": $PASSED,
-      "total": $TOTAL,
-      "score": $SCORE,
-      "test_details": $TEST_DETAILS
-    }
-    EOF
+    passed=0
+    total=0
 
-    git add results/
-    git commit -m "评测结果 #${{ env.JUDGE_ID }}" || true
-    git push origin main
+    for input in "$data_dir"/*.in; do
+      if [ ! -f "$input" ]; then continue; fi
+      total=$((total + 1))
+      base=$(basename "$input" .in)
+      output_file="$data_dir/$base.out"
+      ans_file="$data_dir/$base.ans"
+
+      if [ -f "$output_file" ]; then
+        answer_file="$output_file"
+      elif [ -f "$ans_file" ]; then
+        answer_file="$ans_file"
+      else
+        echo "测试点 $base: SKIP"
+        continue
+      fi
+
+      timeout 5 ./program < "$input" > output.txt 2>&1
+      exit_code=$?
+
+      if [ $exit_code -eq 124 ]; then
+        echo "测试点 $base: TLE"
+      elif [ $exit_code -ne 0 ]; then
+        echo "测试点 $base: RE"
+      else
+        cp output.txt output_processed.txt
+        cp "$answer_file" answer_processed.txt
+        
+        sed -i 's/ *$//' output_processed.txt
+        sed -i 's/ *$//' answer_processed.txt
+        
+        if [ -s output_processed.txt ] && [ "$(tail -c 1 output_processed.txt | od -An -tx1)" = " 0a" ]; then
+          head -c -1 output_processed.txt > output_processed.tmp && mv output_processed.tmp output_processed.txt
+        fi
+        if [ -s answer_processed.txt ] && [ "$(tail -c 1 answer_processed.txt | od -An -tx1)" = " 0a" ]; then
+          head -c -1 answer_processed.txt > answer_processed.tmp && mv answer_processed.tmp answer_processed.txt
+        fi
+        
+        if diff -q output_processed.txt answer_processed.txt > /dev/null 2>&1; then
+          echo "测试点 $base: AC"
+          passed=$((passed + 1))
+        else
+          echo "测试点 $base: WA"
+        fi
+        
+        rm -f output_processed.txt answer_processed.txt output_processed.tmp answer_processed.tmp
+      fi
+    done
+
+    echo ""
+    echo "通过: $passed / $total"
+
+    # 计算分数
+    if [ $total -gt 0 ]; then
+      SCORE=$((passed * 100 / total))
+    else
+      SCORE=0
+    fi
+    echo "得分: $SCORE 分"
+
+    if [ $passed -eq $total ] && [ $total -gt 0 ]; then
+      RESULT="AC"
+    elif [ $total -eq 0 ]; then
+      RESULT="NoData"
+    else
+      RESULT="WA"
+    fi
+
+    echo "RESULT=$RESULT" >> $GITHUB_ENV
+    echo "PASSED=$passed" >> $GITHUB_ENV
+    echo "TOTAL=$total" >> $GITHUB_ENV
+    echo "SCORE=$SCORE" >> $GITHUB_ENV
