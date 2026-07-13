@@ -102,15 +102,35 @@ jobs:
             elif [ $exit_code -ne 0 ]; then
               echo "测试点 $base: RE"
             else
-              if diff -q output.txt "$answer_file" > /dev/null 2>&1; then
+              # ---- 新增：预处理输出文件和答案文件 ----
+              # 1. 删除每行末尾的空格
+              # 2. 删除文件末尾的单个换行符（如果存在）
+              
+              cp output.txt output_processed.txt
+              cp "$answer_file" answer_processed.txt
+              
+              sed -i 's/ *$//' output_processed.txt
+              sed -i 's/ *$//' answer_processed.txt
+              
+              # 删除末尾单个换行符
+              if [ -s output_processed.txt ] && [ "$(tail -c 1 output_processed.txt | od -An -tx1)" = " 0a" ]; then
+                head -c -1 output_processed.txt > output_processed.tmp && mv output_processed.tmp output_processed.txt
+              fi
+              if [ -s answer_processed.txt ] && [ "$(tail -c 1 answer_processed.txt | od -An -tx1)" = " 0a" ]; then
+                head -c -1 answer_processed.txt > answer_processed.tmp && mv answer_processed.tmp answer_processed.txt
+              fi
+              
+              # 使用处理后的文件进行比较
+              if diff -q output_processed.txt answer_processed.txt > /dev/null 2>&1; then
                 echo "测试点 $base: AC"
                 passed=$((passed + 1))
               else
                 echo "测试点 $base: WA"
-                # 可选：输出差异便于调试
-                # echo "--- 你的输出 ---" && cat output.txt
-                # echo "--- 期望输出 ---" && cat "$answer_file"
               fi
+              
+              # 清理临时文件
+              rm -f output_processed.txt answer_processed.txt output_processed.tmp answer_processed.tmp
+              # ---- 新增结束 ----
             fi
           done
 
