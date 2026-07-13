@@ -63,7 +63,6 @@ jobs:
             echo "编译失败"
             cat compile_error.txt
             echo "BUILD_FAILED=true" >> $GITHUB_ENV
-            # 不退出，让后续步骤执行提交 CE 结果
           fi
 
       - name: 评测
@@ -77,6 +76,7 @@ jobs:
 
           passed=0
           total=0
+          test_details=""
 
           for input in "$data_dir"/*.in; do
             if [ ! -f "$input" ]; then continue; fi
@@ -90,7 +90,12 @@ jobs:
             elif [ -f "$ans_file" ]; then
               answer_file="$ans_file"
             else
-              echo "测试点 $base: SKIP"
+              echo "测试点 $base: UKE"
+              if [ -z "$test_details" ]; then
+                test_details="{\"name\":\"$base\",\"status\":\"UKE\"}"
+              else
+                test_details="$test_details,{\"name\":\"$base\",\"status\":\"UKE\"}"
+              fi
               continue
             fi
 
@@ -99,20 +104,34 @@ jobs:
 
             if [ $exit_code -eq 124 ]; then
               echo "测试点 $base: TLE"
+              if [ -z "$test_details" ]; then
+                test_details="{\"name\":\"$base\",\"status\":\"TLE\"}"
+              else
+                test_details="$test_details,{\"name\":\"$base\",\"status\":\"TLE\"}"
+              fi
             elif [ $exit_code -ne 0 ]; then
-              echo "测试点 $base: RE"
+              if grep -q "Memory" output.txt || grep -q "Killed" output.txt; then
+                echo "测试点 $base: MLE"
+                if [ -z "$test_details" ]; then
+                  test_details="{\"name\":\"$base\",\"status\":\"MLE\"}"
+                else
+                  test_details="$test_details,{\"name\":\"$base\",\"status\":\"MLE\"}"
+                fi
+              else
+                echo "测试点 $base: RE"
+                if [ -z "$test_details" ]; then
+                  test_details="{\"name\":\"$base\",\"status\":\"RE\"}"
+                else
+                  test_details="$test_details,{\"name\":\"$base\",\"status\":\"RE\"}"
+                fi
+              fi
             else
-              # ---- 新增：预处理输出文件和答案文件 ----
-              # 1. 删除每行末尾的空格
-              # 2. 删除文件末尾的单个换行符（如果存在）
-              
               cp output.txt output_processed.txt
               cp "$answer_file" answer_processed.txt
               
               sed -i 's/ *$//' output_processed.txt
               sed -i 's/ *$//' answer_processed.txt
               
-              # 删除末尾单个换行符
               if [ -s output_processed.txt ] && [ "$(tail -c 1 output_processed.txt | od -An -tx1)" = " 0a" ]; then
                 head -c -1 output_processed.txt > output_processed.tmp && mv output_processed.tmp output_processed.txt
               fi
@@ -120,22 +139,42 @@ jobs:
                 head -c -1 answer_processed.txt > answer_processed.tmp && mv answer_processed.tmp answer_processed.txt
               fi
               
-              # 使用处理后的文件进行比较
               if diff -q output_processed.txt answer_processed.txt > /dev/null 2>&1; then
                 echo "测试点 $base: AC"
                 passed=$((passed + 1))
+                if [ -z "$test_details" ]; then
+                  test_details="{\"name\":\"$base\",\"status\":\"AC\"}"
+                else
+                  test_details="$test_details,{\"name\":\"$base\",\"status\":\"AC\"}"
+                fi
               else
                 echo "测试点 $base: WA"
+                if [ -z "$test_details" ]; then
+                  test_details="{\"name\":\"$base\",\"status\":\"WA\"}"
+                else
+                  test_details="$test_details,{\"name\":\"$base\",\"status\":\"WA\"}"
+                fi
               fi
               
-              # 清理临时文件
               rm -f output_processed.txt answer_processed.txt output_processed.tmp answer_processed.tmp
-              # ---- 新增结束 ----
             fi
           done
 
+          if [ -n "$test_details" ]; then
+            TEST_DETAILS="[$test_details]"
+          else
+            TEST_DETAILS="[]"
+          fi
+
           echo ""
           echo "通过: $passed / $total"
+
+          if [ $total -gt 0 ]; then
+            SCORE=$((passed * 100 / total))
+          else
+            SCORE=0
+          fi
+          echo "得分: $SCORE 分"
 
           if [ $passed -eq $total ] && [ $total -gt 0 ]; then
             RESULT="AC"
@@ -148,34 +187,46 @@ jobs:
           echo "RESULT=$RESULT" >> $GITHUB_ENV
           echo "PASSED=$passed" >> $GITHUB_ENV
           echo "TOTAL=$total" >> $GITHUB_ENV
+          echo "SCORE=$SCORE" >> $GITHUB_ENV
+          echo "TEST_DETAILS=$TEST_DETAILS" >> $GITHUB_ENV
+
       - name: 提交结果到仓库
         if: always()
         env:
           MY_TOKEN: ${{ secrets.MY_TOKEN }}
         run: |
-          # 配置 git
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin https://x-access-token:${MY_TOKEN}@github.com/Dream-Ydch/lmtoj-judge.git
 
-          # 强制同步到远程最新
           git fetch origin main
           git reset --hard origin/main
 
-          # 根据编译和评测状态生成结果
           mkdir -p results
+          
           if [ "$BUILD_FAILED" == "true" ]; then
             RESULT="CE"
             PASSED=0
             TOTAL=0
+            SCORE=0
+            TEST_DETAILS='[{"status":"CE","message":"编译错误"}]'
           elif [ -z "$RESULT" ]; then
             RESULT="SystemError"
             PASSED=0
             TOTAL=0
+            SCORE=0
+            TEST_DETAILS='[{"status":"SystemError","message":"系统错误"}]'
           fi
 
           cat > results/${{ env.JUDGE_ID }}.json <<EOF
-          {"judge_id": ${{ env.JUDGE_ID }}, "result": "$RESULT", "passed": $PASSED, "total": $TOTAL}
+          {
+            "judge_id": ${{ env.JUDGE_ID }},
+            "result": "$RESULT",
+            "passed": $PASSED,
+            "total": $TOTAL,
+            "score": $SCORE,
+            "test_details": $TEST_DETAILS
+          }
           EOF
 
           git add results/
