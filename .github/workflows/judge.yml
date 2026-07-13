@@ -148,7 +148,6 @@ jobs:
           echo "RESULT=$RESULT" >> $GITHUB_ENV
           echo "PASSED=$passed" >> $GITHUB_ENV
           echo "TOTAL=$total" >> $GITHUB_ENV
-
       - name: 提交结果到仓库
         if: always()
         env:
