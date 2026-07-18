@@ -4,19 +4,6 @@ on:
   push:
     paths:
       - 'submit/**'
-  workflow_dispatch:
-    inputs:
-      judge_id:
-        description: '评测ID (对应 submit/{judge_id}.cpp)'
-        required: true
-        type: string
-      problem_id:
-        description: '题目ID (对应 testdata/{problem_id}/)'
-        required: true
-        type: string
-  repository_dispatch:
-    types: [judge]
-
 jobs:
   judge:
     runs-on: ubuntu-latest
