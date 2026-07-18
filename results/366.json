@@ -1,0 +1,8 @@
+{
+  "judge_id": 366,
+  "result": "AC",
+  "passed": 5,
+  "total": 5,
+  "score": 100,
+  "test_details": [{"name":"01","status":"AC"},{"name":"02","status":"AC"},{"name":"03","status":"AC"},{"name":"04","status":"AC"},{"name":"05","status":"AC"}]
+}
