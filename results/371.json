@@ -1,0 +1,8 @@
+{
+  "judge_id": 371,
+  "result": "WA",
+  "passed": 0,
+  "total": 6,
+  "score": 0,
+  "test_details": [{"name":"01","status":"WA"},{"name":"02","status":"WA"},{"name":"03","status":"WA"},{"name":"04","status":"WA"},{"name":"05","status":"WA"},{"name":"06","status":"WA"}]
+}
