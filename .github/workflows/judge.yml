@@ -86,31 +86,28 @@ jobs:
               continue
             fi
 
-            timeout 5 ./program < "$input" > output.txt 2>&1
+            # 用 /usr/bin/time 捕获运行时间和最大内存（单位：秒和KB）
+            /usr/bin/time -f "%e %M" -o "time_${base}.txt" timeout 5 ./program < "$input" > output.txt 2>&1
             exit_code=$?
+
+            # 读取时间和内存（如果文件存在）
+            time_used=""
+            mem_used=""
+            if [ -f "time_${base}.txt" ]; then
+              read -r time_used mem_used < "time_${base}.txt"
+              rm -f "time_${base}.txt"
+            fi
 
             if [ $exit_code -eq 124 ]; then
               echo "测试点 $base: TLE"
-              if [ -z "$test_details" ]; then
-                test_details="{\"name\":\"$base\",\"status\":\"TLE\"}"
-              else
-                test_details="$test_details,{\"name\":\"$base\",\"status\":\"TLE\"}"
-              fi
+              status="TLE"
             elif [ $exit_code -ne 0 ]; then
               if grep -q "Memory" output.txt || grep -q "Killed" output.txt; then
                 echo "测试点 $base: MLE"
-                if [ -z "$test_details" ]; then
-                  test_details="{\"name\":\"$base\",\"status\":\"MLE\"}"
-                else
-                  test_details="$test_details,{\"name\":\"$base\",\"status\":\"MLE\"}"
-                fi
+                status="MLE"
               else
                 echo "测试点 $base: RE"
-                if [ -z "$test_details" ]; then
-                  test_details="{\"name\":\"$base\",\"status\":\"RE\"}"
-                else
-                  test_details="$test_details,{\"name\":\"$base\",\"status\":\"RE\"}"
-                fi
+                status="RE"
               fi
             else
               cp output.txt output_processed.txt
@@ -128,23 +125,30 @@ jobs:
               
               if diff -q output_processed.txt answer_processed.txt > /dev/null 2>&1; then
                 echo "测试点 $base: AC"
+                status="AC"
                 passed=$((passed + 1))
-                if [ -z "$test_details" ]; then
-                  test_details="{\"name\":\"$base\",\"status\":\"AC\"}"
-                else
-                  test_details="$test_details,{\"name\":\"$base\",\"status\":\"AC\"}"
-                fi
               else
                 echo "测试点 $base: WA"
-                if [ -z "$test_details" ]; then
-                  test_details="{\"name\":\"$base\",\"status\":\"WA\"}"
-                else
-                  test_details="$test_details,{\"name\":\"$base\",\"status\":\"WA\"}"
-                fi
+                status="WA"
               fi
               
               rm -f output_processed.txt answer_processed.txt output_processed.tmp answer_processed.tmp
             fi
+
+            # 构建带时间/内存信息的 JSON 对象（若有数据）
+            if [ -n "$time_used" ] && [ -n "$mem_used" ]; then
+              detail="{\"name\":\"$base\",\"status\":\"$status\",\"time\":$time_used,\"memory\":$mem_used}"
+            else
+              detail="{\"name\":\"$base\",\"status\":\"$status\"}"
+            fi
+
+            if [ -z "$test_details" ]; then
+              test_details="$detail"
+            else
+              test_details="$test_details,$detail"
+            fi
+
+            rm -f output.txt
           done
 
           if [ -n "$test_details" ]; then
