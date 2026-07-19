@@ -1,0 +1,8 @@
+{
+  "judge_id": 376,
+  "result": "WA",
+  "passed": 0,
+  "total": 5,
+  "score": 0,
+  "test_details": [{"name":"01","status":"WA","time":0.00,"memory":3828},{"name":"02","status":"WA","time":0.02,"memory":4552},{"name":"03","status":"WA","time":0.02,"memory":4580},{"name":"04","status":"WA","time":0.02,"memory":4604},{"name":"05","status":"WA","time":0.02,"memory":4620}]
+}
