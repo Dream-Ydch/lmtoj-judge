@@ -1,57 +1,3 @@
-name: 代码评测
-
-on:
-  push:
-    paths:
-      - 'submit/**'
-jobs:
-  judge:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: 获取评测ID和题目ID
-        id: get_id
-        run: |
-          JUDGE_ID="${{ github.event.inputs.judge_id }}"
-          PROBLEM_ID="${{ github.event.inputs.problem_id }}"
-          
-          if [ -z "$JUDGE_ID" ]; then
-            COMMIT_MSG=$(git log -1 --pretty=%B)
-            JUDGE_ID=$(echo "$COMMIT_MSG" | grep -oP '#\K\d+' | head -1)
-            PROBLEM_ID=$(echo "$COMMIT_MSG" | grep -oP '题目 \K\d+' | head -1)
-          fi
-          
-          echo "JUDGE_ID=$JUDGE_ID" >> $GITHUB_ENV
-          echo "PROBLEM_ID=$PROBLEM_ID" >> $GITHUB_ENV
-
-      - name: 显示参数
-        run: |
-          echo "评测ID: ${{ env.JUDGE_ID }}"
-          echo "题目ID: ${{ env.PROBLEM_ID }}"
-
-      - name: 编译
-        id: build
-        run: |
-          if [ ! -f "submit/${{ env.JUDGE_ID }}.cpp" ]; then
-            echo "代码文件 submit/${{ env.JUDGE_ID }}.cpp 不存在"
-            echo "BUILD_FAILED=true" >> $GITHUB_ENV
-            exit 1
-          fi
-          cp "submit/${{ env.JUDGE_ID }}.cpp" main.cpp
-          if g++ -std=c++23 -O2 -o program main.cpp 2> compile_error.txt; then
-            echo "编译成功"
-            echo "BUILD_FAILED=false" >> $GITHUB_ENV
-          else
-            echo "编译失败"
-            cat compile_error.txt
-            echo "BUILD_FAILED=true" >> $GITHUB_ENV
-          fi
-
       - name: 评测
         if: env.BUILD_FAILED == 'false'
         run: |
@@ -98,9 +44,15 @@ jobs:
               rm -f "time_${base}.txt"
             fi
 
+            # 处理各种退出码
             if [ $exit_code -eq 124 ]; then
               echo "测试点 $base: TLE"
               status="TLE"
+            elif [ $exit_code -eq 255 ]; then
+              echo "测试点 $base: UKE (系统错误)"
+              status="UKE"
+              time_used="0"
+              mem_used="0"
             elif [ $exit_code -ne 0 ]; then
               if grep -q "Memory" output.txt || grep -q "Killed" output.txt; then
                 echo "测试点 $base: MLE"
@@ -180,46 +132,3 @@ jobs:
           echo "TOTAL=$total" >> $GITHUB_ENV
           echo "SCORE=$SCORE" >> $GITHUB_ENV
           echo "TEST_DETAILS=$TEST_DETAILS" >> $GITHUB_ENV
-
-      - name: 提交结果到仓库
-        if: always()
-        env:
-          MY_TOKEN: ${{ secrets.MY_TOKEN }}
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin https://x-access-token:${MY_TOKEN}@github.com/Dream-Ydch/lmtoj-judge.git
-
-          git fetch origin main
-          git reset --hard origin/main
-
-          mkdir -p results
-          
-          if [ "$BUILD_FAILED" == "true" ]; then
-            RESULT="CE"
-            PASSED=0
-            TOTAL=0
-            SCORE=0
-            TEST_DETAILS='[{"status":"CE","message":"编译错误"}]'
-          elif [ -z "$RESULT" ]; then
-            RESULT="SystemError"
-            PASSED=0
-            TOTAL=0
-            SCORE=0
-            TEST_DETAILS='[{"status":"SystemError","message":"系统错误"}]'
-          fi
-
-          cat > results/${{ env.JUDGE_ID }}.json <<EOF
-          {
-            "judge_id": ${{ env.JUDGE_ID }},
-            "result": "$RESULT",
-            "passed": $PASSED,
-            "total": $TOTAL,
-            "score": $SCORE,
-            "test_details": $TEST_DETAILS
-          }
-          EOF
-
-          git add results/
-          git commit -m "评测结果 #${{ env.JUDGE_ID }}" || true
-          git push origin main
