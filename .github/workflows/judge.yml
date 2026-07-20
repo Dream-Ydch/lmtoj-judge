@@ -52,7 +52,7 @@ jobs:
             echo "BUILD_FAILED=true" >> $GITHUB_ENV
           fi
 
-            - name: 评测
+      - name: 评测
         if: env.BUILD_FAILED == 'false'
         run: |
           data_dir="${{ env.PROBLEM_ID }}"
