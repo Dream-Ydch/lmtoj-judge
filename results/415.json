@@ -1,0 +1,8 @@
+{
+  "judge_id": 415,
+  "result": "AC",
+  "passed": 10,
+  "total": 10,
+  "score": 100,
+  "test_details": [{"name":"01","status":"AC","time":0.00,"memory":3652},{"name":"02","status":"AC","time":0.00,"memory":3588},{"name":"03","status":"AC","time":0.00,"memory":3652},{"name":"04","status":"AC","time":0.00,"memory":3588},{"name":"05","status":"AC","time":0.00,"memory":3648},{"name":"06","status":"AC","time":0.00,"memory":3696},{"name":"07","status":"AC","time":0.00,"memory":3648},{"name":"08","status":"AC","time":0.00,"memory":3660},{"name":"09","status":"AC","time":0.00,"memory":3664},{"name":"10","status":"AC","time":0.00,"memory":3612}]
+}
