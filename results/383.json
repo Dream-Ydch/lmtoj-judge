@@ -1,0 +1,8 @@
+{
+  "judge_id": 383,
+  "result": "SystemError",
+  "passed": 0,
+  "total": 0,
+  "score": 0,
+  "test_details": [{"status":"SystemError","message":"系统错误"}]
+}
