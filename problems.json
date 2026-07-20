@@ -22,5 +22,17 @@
         "name": "交互题",
         "time_limit": 675,
         "memory_limit": 16
+    },
+    {
+        "id": 1004,
+        "name": "【模板】排序",
+        "time_limit": 1000,
+        "memory_limit": 256
+    },
+    {
+        "id": 1005,
+        "name": "【模板】01 背包 \/ 采药",
+        "time_limit": 1000,
+        "memory_limit": 125
     }
 ]
