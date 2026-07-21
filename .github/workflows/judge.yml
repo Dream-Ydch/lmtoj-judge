@@ -55,9 +55,10 @@ jobs:
       - name: 评测
         if: env.BUILD_FAILED == 'false'
         run: |
-          data_dir="${{ env.PROBLEM_ID }}"
+          # 修改：从 testdata 目录读取测试数据
+          data_dir="testdata/${{ env.PROBLEM_ID }}"
           if [ ! -d "$data_dir" ]; then
-            echo "错误：找不到题目 ${{ env.PROBLEM_ID }} 的测试数据目录"
+            echo "错误：找不到题目 ${{ env.PROBLEM_ID }} 的测试数据目录 testdata/${{ env.PROBLEM_ID }}"
             exit 1
           fi
 
