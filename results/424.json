@@ -1,0 +1,8 @@
+{
+  "judge_id": 424,
+  "result": "WA",
+  "passed": 0,
+  "total": 29,
+  "score": 0,
+  "test_details": [{"name":"1","status":"WA","time":0.00,"memory":3892},{"name":"10","status":"WA","time":0.00,"memory":3908},{"name":"11","status":"WA","time":0.00,"memory":3992},{"name":"12","status":"WA","time":0.00,"memory":3892},{"name":"13","status":"WA","time":0.00,"memory":3916},{"name":"14","status":"WA","time":0.00,"memory":4040},{"name":"17","status":"WA","time":0.00,"memory":3872},{"name":"18","status":"WA","time":0.00,"memory":3872},{"name":"19","status":"WA","time":0.00,"memory":3976},{"name":"2","status":"WA","time":0.00,"memory":3908},{"name":"20","status":"WA","time":0.00,"memory":3872},{"name":"22","status":"WA","time":0.00,"memory":4020},{"name":"25","status":"WA","time":0.00,"memory":4016},{"name":"29","status":"WA","time":0.00,"memory":4236},{"name":"3","status":"WA","time":0.00,"memory":3916},{"name":"31","status":"WA","time":0.00,"memory":4128},{"name":"32","status":"WA","time":0.00,"memory":4376},{"name":"33","status":"WA","time":0.00,"memory":4384},{"name":"34","status":"WA","time":0.00,"memory":4384},{"name":"35","status":"WA","time":0.00,"memory":4236},{"name":"36","status":"WA","time":0.01,"memory":4540},{"name":"37","status":"WA","time":0.00,"memory":4556},{"name":"4","status":"WA","time":0.00,"memory":3908},{"name":"45","status":"WA","time":0.00,"memory":4744},{"name":"5","status":"WA","time":0.00,"memory":3872},{"name":"6","status":"WA","time":0.00,"memory":3912},{"name":"7","status":"WA","time":0.00,"memory":3872},{"name":"8","status":"WA","time":0.00,"memory":3900},{"name":"9","status":"WA","time":0.00,"memory":3900}]
+}
