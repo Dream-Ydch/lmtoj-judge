@@ -1,0 +1,8 @@
+{
+  "judge_id": 417,
+  "result": "CE",
+  "passed": 0,
+  "total": 0,
+  "score": 0,
+  "test_details": [{"status":"CE","message":"编译错误"}]
+}
