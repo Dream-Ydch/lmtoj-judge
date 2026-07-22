@@ -1,0 +1,8 @@
+{
+  "judge_id": 454,
+  "result": "AC",
+  "passed": 5,
+  "total": 5,
+  "score": 100,
+  "test_details": [{"name":"01","status":"AC","time":0.00,"memory":3604},{"name":"02","status":"AC","time":0.00,"memory":3548},{"name":"03","status":"AC","time":0.00,"memory":3616},{"name":"04","status":"AC","time":0.00,"memory":3536},{"name":"05","status":"AC","time":0.00,"memory":3612}]
+}
