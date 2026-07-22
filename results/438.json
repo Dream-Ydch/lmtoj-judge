@@ -1,0 +1,8 @@
+{
+  "judge_id": 438,
+  "result": "WA",
+  "passed": 0,
+  "total": 10,
+  "score": 0,
+  "test_details": [{"name":"01","status":"WA","time":0.00,"memory":3608},{"name":"02","status":"WA","time":0.00,"memory":3544},{"name":"03","status":"WA","time":0.00,"memory":3592},{"name":"04","status":"WA","time":0.00,"memory":3596},{"name":"05","status":"WA","time":0.00,"memory":3588},{"name":"06","status":"WA","time":0.00,"memory":3612},{"name":"07","status":"WA","time":0.00,"memory":3576},{"name":"08","status":"WA","time":0.00,"memory":3548},{"name":"09","status":"WA","time":0.00,"memory":3576},{"name":"10","status":"WA","time":0.00,"memory":3596}]
+}
