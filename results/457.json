@@ -1,0 +1,8 @@
+{
+  "judge_id": 457,
+  "result": "WA",
+  "passed": 0,
+  "total": 6,
+  "score": 0,
+  "test_details": [{"name":"01","status":"WA","time":0.00,"memory":3656},{"name":"02","status":"WA","time":0.00,"memory":3788},{"name":"03","status":"WA","time":0.00,"memory":3772},{"name":"04","status":"WA","time":0.00,"memory":3644},{"name":"05","status":"WA","time":0.00,"memory":3744},{"name":"06","status":"WA","time":0.00,"memory":3652}]
+}
