@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'submit/**'
+
 jobs:
   judge:
     runs-on: ubuntu-latest
@@ -59,7 +60,6 @@ jobs:
           testout_dir="testout/${{ env.JUDGE_ID }}"
           mkdir -p "$testout_dir"
           
-          # 修改：从 testdata 目录读取测试数据
           data_dir="testdata/${{ env.PROBLEM_ID }}"
           if [ ! -d "$data_dir" ]; then
             echo "错误：找不到题目 ${{ env.PROBLEM_ID }} 的测试数据目录 testdata/${{ env.PROBLEM_ID }}"
@@ -77,7 +77,7 @@ jobs:
             output_file="$data_dir/$base.out"
             ans_file="$data_dir/$base.ans"
 
-            # 设置测试点输出文件路径
+            # 当前测试点的输出文件
             test_output_file="$testout_dir/$base.txt"
 
             if [ -f "$output_file" ]; then
@@ -86,7 +86,6 @@ jobs:
               answer_file="$ans_file"
             else
               echo "测试点 $base: UKE"
-              # 保存错误信息到输出文件
               echo "UKE: 找不到答案文件" > "$test_output_file"
               if [ -z "$test_details" ]; then
                 test_details="{\"name\":\"$base\",\"status\":\"UKE\"}"
@@ -96,11 +95,11 @@ jobs:
               continue
             fi
 
-            # 用 /usr/bin/time 捕获运行时间和最大内存（单位：秒和KB）
+            # 运行程序，输出重定向到 test_output_file
             /usr/bin/time -f "%e %M" -o "time_${base}.txt" timeout 5 ./program < "$input" > "$test_output_file" 2>&1
             exit_code=$?
 
-            # 读取时间和内存（如果文件存在）
+            # 读取时间和内存
             time_used=""
             mem_used=""
             if [ -f "time_${base}.txt" ]; then
@@ -108,7 +107,7 @@ jobs:
               rm -f "time_${base}.txt"
             fi
 
-            # 处理各种退出码
+            # 判断执行结果
             if [ $exit_code -eq 124 ]; then
               echo "测试点 $base: TLE"
               status="TLE"
@@ -126,13 +125,15 @@ jobs:
                 status="RE"
               fi
             else
-              # 比较输出与答案
+              # 比较输出（保留原始输出文件，用副本处理）
               cp "$test_output_file" output_processed.txt
               cp "$answer_file" answer_processed.txt
               
+              # 去除行尾空格
               sed -i 's/ *$//' output_processed.txt
               sed -i 's/ *$//' answer_processed.txt
               
+              # 去除文件末尾换行
               if [ -s output_processed.txt ] && [ "$(tail -c 1 output_processed.txt | od -An -tx1)" = " 0a" ]; then
                 head -c -1 output_processed.txt > output_processed.tmp && mv output_processed.tmp output_processed.txt
               fi
@@ -152,7 +153,7 @@ jobs:
               rm -f output_processed.txt answer_processed.txt output_processed.tmp answer_processed.tmp
             fi
 
-            # 构建带时间/内存信息的 JSON 对象（若有数据）
+            # 构建测试详情 JSON
             if [ -n "$time_used" ] && [ -n "$mem_used" ]; then
               detail="{\"name\":\"$base\",\"status\":\"$status\",\"time\":$time_used,\"memory\":$mem_used}"
             else
@@ -164,11 +165,9 @@ jobs:
             else
               test_details="$test_details,$detail"
             fi
-
-            # 清理临时文件（保留 test_output_file）
-            rm -f output.txt
           done
 
+          # 汇总结果
           if [ -n "$test_details" ]; then
             TEST_DETAILS="[$test_details]"
           else
@@ -198,6 +197,14 @@ jobs:
           echo "TOTAL=$total" >> $GITHUB_ENV
           echo "SCORE=$SCORE" >> $GITHUB_ENV
           echo "TEST_DETAILS=$TEST_DETAILS" >> $GITHUB_ENV
+
+      - name: 上传测试输出（Artifact）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output-${{ env.JUDGE_ID }}
+          path: testout/
+          if-no-files-found: ignore
 
       - name: 提交结果到仓库
         if: always()
