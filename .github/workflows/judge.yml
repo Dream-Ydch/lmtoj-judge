@@ -55,6 +55,10 @@ jobs:
       - name: 评测
         if: env.BUILD_FAILED == 'false'
         run: |
+          # 创建测试输出目录
+          testout_dir="testout/${{ env.JUDGE_ID }}"
+          mkdir -p "$testout_dir"
+          
           # 修改：从 testdata 目录读取测试数据
           data_dir="testdata/${{ env.PROBLEM_ID }}"
           if [ ! -d "$data_dir" ]; then
@@ -73,12 +77,17 @@ jobs:
             output_file="$data_dir/$base.out"
             ans_file="$data_dir/$base.ans"
 
+            # 设置测试点输出文件路径
+            test_output_file="$testout_dir/$base.txt"
+
             if [ -f "$output_file" ]; then
               answer_file="$output_file"
             elif [ -f "$ans_file" ]; then
               answer_file="$ans_file"
             else
               echo "测试点 $base: UKE"
+              # 保存错误信息到输出文件
+              echo "UKE: 找不到答案文件" > "$test_output_file"
               if [ -z "$test_details" ]; then
                 test_details="{\"name\":\"$base\",\"status\":\"UKE\"}"
               else
@@ -88,7 +97,7 @@ jobs:
             fi
 
             # 用 /usr/bin/time 捕获运行时间和最大内存（单位：秒和KB）
-            /usr/bin/time -f "%e %M" -o "time_${base}.txt" timeout 5 ./program < "$input" > output.txt 2>&1
+            /usr/bin/time -f "%e %M" -o "time_${base}.txt" timeout 5 ./program < "$input" > "$test_output_file" 2>&1
             exit_code=$?
 
             # 读取时间和内存（如果文件存在）
@@ -109,7 +118,7 @@ jobs:
               time_used="0"
               mem_used="0"
             elif [ $exit_code -ne 0 ]; then
-              if grep -q "Memory" output.txt || grep -q "Killed" output.txt; then
+              if grep -q "Memory" "$test_output_file" || grep -q "Killed" "$test_output_file"; then
                 echo "测试点 $base: MLE"
                 status="MLE"
               else
@@ -117,7 +126,8 @@ jobs:
                 status="RE"
               fi
             else
-              cp output.txt output_processed.txt
+              # 比较输出与答案
+              cp "$test_output_file" output_processed.txt
               cp "$answer_file" answer_processed.txt
               
               sed -i 's/ *$//' output_processed.txt
@@ -155,6 +165,7 @@ jobs:
               test_details="$test_details,$detail"
             fi
 
+            # 清理临时文件（保留 test_output_file）
             rm -f output.txt
           done
 
